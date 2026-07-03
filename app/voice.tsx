@@ -6,6 +6,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const C = {
   blue: '#4F8EF7', blueSoft: '#EBF2FF',
@@ -45,6 +46,19 @@ export default function VoiceScreen() {
   const [speed, setSpeed] = useState(1);
   const [testing, setTesting] = useState(false);
   const testScale = useRef(new Animated.Value(1)).current;
+  const [userMode, setUserMode] = useState<'normal' | 'disabled'>('normal');
+
+  useEffect(() => {
+    AsyncStorage.getItem('userMode').then(val => {
+      if (val === 'disabled') setUserMode('disabled');
+      else setUserMode('normal');
+    });
+  }, []);
+
+  const changeMode = async (mode: 'normal' | 'disabled') => {
+    setUserMode(mode);
+    await AsyncStorage.setItem('userMode', mode);
+  };
 
   const flip = (i: number) => {
     const next = [...toggles];
@@ -77,6 +91,34 @@ export default function VoiceScreen() {
 
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.content}>
+
+          {/* 이용 모드 */}
+          <View style={styles.modeCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <Ionicons name="person-circle-outline" size={18} color={C.dark} />
+              <Text style={styles.speedTitle}>이용 모드</Text>
+            </View>
+            <View style={styles.modeRow}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => changeMode('normal')}
+                style={[styles.modeOpt, userMode === 'normal' && styles.modeOptBlue]}
+              >
+                <Ionicons name="person" size={20} color={userMode === 'normal' ? C.white : C.gray} />
+                <Text style={[styles.modeOptTitle, userMode === 'normal' && { color: C.white }]}>비장애인</Text>
+                <Text style={[styles.modeOptSub, userMode === 'normal' && { color: 'rgba(255,255,255,0.8)' }]}>기본 정보 조회</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => changeMode('disabled')}
+                style={[styles.modeOpt, userMode === 'disabled' && styles.modeOptGreen]}
+              >
+                <Ionicons name="accessibility" size={20} color={userMode === 'disabled' ? C.white : C.gray} />
+                <Text style={[styles.modeOptTitle, userMode === 'disabled' && { color: C.white }]}>장애인</Text>
+                <Text style={[styles.modeOptSub, userMode === 'disabled' && { color: 'rgba(255,255,255,0.8)' }]}>승차 의사 표시 포함</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
 
           <LinearGradient colors={['#A259FF', '#7C3AFF']} style={styles.hero}>
             <View style={styles.waveRow}>
@@ -180,4 +222,11 @@ const styles = StyleSheet.create({
   speedHint:  { fontSize: 10, color: C.gray, marginTop: 2 },
   testBtn:    { borderRadius: 20, paddingVertical: 18, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', paddingHorizontal: 16 },
   testBtnText:{ fontSize: 15, fontWeight: '800', color: C.white },
+  modeCard:   { backgroundColor: C.white, borderRadius: 20, padding: 18, shadowColor: '#1A1F36', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 10 },
+  modeRow:    { flexDirection: 'row', gap: 10 },
+  modeOpt:    { flex: 1, borderRadius: 16, paddingVertical: 14, alignItems: 'center', gap: 4, borderWidth: 2, borderColor: '#E0E5F2', backgroundColor: '#F8F9FF' },
+  modeOptBlue:  { backgroundColor: C.blue, borderColor: C.blue },
+  modeOptGreen: { backgroundColor: C.green, borderColor: C.green },
+  modeOptTitle: { fontSize: 13, fontWeight: '800', color: C.gray },
+  modeOptSub:   { fontSize: 10, color: C.gray, textAlign: 'center' },
 });

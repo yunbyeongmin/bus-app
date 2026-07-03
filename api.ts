@@ -4,6 +4,15 @@ const BASE_ROUTE   = 'https://apis.data.go.kr/6410000/busrouteservice/v2';
 const BASE_LOCATION = 'https://apis.data.go.kr/6410000/buslocationservice/v2';
 const BASE_STATION = 'https://apis.data.go.kr/6410000/busstationservice/v2';
 
+async function safeJson(res: Response): Promise<any> {
+  const text = await res.text();
+  if (!text.startsWith('{') && !text.startsWith('[')) {
+    console.warn('API 응답 오류:', text.slice(0, 80));
+    return null;
+  }
+  return JSON.parse(text);
+}
+
 export const STATIONS: Record<string, { name: string; x: number; y: number }> = {
   '223000142': { name: '포천시청앞', x: 127.2016167, y: 37.895 },
   '223000145': { name: '포천터미널', x: 127.2014167, y: 37.8950833 },
@@ -33,8 +42,8 @@ export async function getBusArrival(stationId: string) {
   try {
     const url = `${BASE_ARRIVAL}/getBusArrivalListv2?serviceKey=${API_KEY}&stationId=${stationId}&format=json`;
     const res = await fetch(url);
-    const json = await res.json();
-    const list = json.response?.msgBody?.busArrivalList ?? [];
+    const json = await safeJson(res);
+    const list = json?.response?.msgBody?.busArrivalList ?? [];
     return list.map((b: any) => ({ ...b, stationId: String(b.stationId ?? stationId) }));
   } catch (e) {
     return [];
@@ -46,6 +55,7 @@ export async function getBusArrivalMulti(stationIds: string[]) {
   const merged = results.flat();
   const seen = new Set();
   return merged
+    .filter(b => String(b.routeId).startsWith('236'))   // 포천 노선만
     .sort((a, b) => (a.predictTime1 || 999) - (b.predictTime1 || 999))
     .filter(b => {
       if (seen.has(b.routeId)) return false;
@@ -58,8 +68,8 @@ export async function getBusLocation(routeId: string, routeStations?: any[]) {
   try {
     const locationUrl = `${BASE_LOCATION}/getBusLocationListv2?serviceKey=${API_KEY}&routeId=${routeId}&format=json`;
     const locationRes = await fetch(locationUrl);
-    const locationJson = await locationRes.json();
-    const locations = locationJson.response?.msgBody?.busLocationList ?? [];
+    const locationJson = await safeJson(locationRes);
+    const locations = locationJson?.response?.msgBody?.busLocationList ?? [];
     const stations = routeStations ?? await getRouteStations(routeId);
     const stationById = new Map<string, any>(stations.map((s: any) => [String(s.stationId), s]));
 
@@ -78,10 +88,14 @@ export async function getBusLocation(routeId: string, routeStations?: any[]) {
 }
 
 export async function getRouteStations(routeId: string) {
-  const url = `${BASE_ROUTE}/getBusRouteStationListv2?serviceKey=${API_KEY}&routeId=${routeId}&format=json`;
-  const res = await fetch(url);
-  const json = await res.json();
-  return json.response?.msgBody?.busRouteStationList ?? [];
+  try {
+    const url = `${BASE_ROUTE}/getBusRouteStationListv2?serviceKey=${API_KEY}&routeId=${routeId}&format=json`;
+    const res = await fetch(url);
+    const json = await safeJson(res);
+    return json?.response?.msgBody?.busRouteStationList ?? [];
+  } catch (e) {
+    return [];
+  }
 }
 
 export async function getRouteStationIds(routeId: string): Promise<string[]> {
@@ -90,9 +104,36 @@ export async function getRouteStationIds(routeId: string): Promise<string[]> {
 }
 
 export async function searchStations(keyword: string) {
-  const encoded = encodeURIComponent(keyword);
-  const url = `${BASE_STATION}/getBusStationListv2?serviceKey=${API_KEY}&keyword=${encoded}&format=json`;
-  const res = await fetch(url);
-  const json = await res.json();
-  return json.response?.msgBody?.busStationList ?? [];
+  try {
+    const encoded = encodeURIComponent(keyword);
+    const url = `${BASE_STATION}/getBusStationListv2?serviceKey=${API_KEY}&keyword=${encoded}&format=json`;
+    const res = await fetch(url);
+    const json = await safeJson(res);
+    return json?.response?.msgBody?.busStationList ?? [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function searchBusRoute(keyword: string) {
+  try {
+    const encoded = encodeURIComponent(keyword);
+    const url = `${BASE_ROUTE}/getBusRouteListv2?serviceKey=${API_KEY}&keyword=${encoded}&format=json`;
+    const res = await fetch(url);
+    const json = await safeJson(res);
+    return json?.response?.msgBody?.busRouteList ?? [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function getStationById(stationId: string) {
+  try {
+    const url = `${BASE_STATION}/getBusStationv2?serviceKey=${API_KEY}&stationId=${stationId}&format=json`;
+    const res = await fetch(url);
+    const json = await res.json();
+    return json.response?.msgBody?.busStationList?.[0] ?? null;
+  } catch {
+    return null;
+  }
 }
