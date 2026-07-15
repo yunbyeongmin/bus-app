@@ -1,4 +1,4 @@
-const API_KEY = '40bec8b0436cf6d9b9d8412424110aa19d0ed9bfc7e1595b3c0cba6d6d3a0691';
+const API_KEY = process.env.EXPO_PUBLIC_GYEONGGI_API_KEY ?? '';
 const BASE_ARRIVAL = 'https://apis.data.go.kr/6410000/busarrivalservice/v2';
 const BASE_ROUTE   = 'https://apis.data.go.kr/6410000/busrouteservice/v2';
 const BASE_LOCATION = 'https://apis.data.go.kr/6410000/buslocationservice/v2';
